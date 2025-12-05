@@ -11,3 +11,7 @@
 ## CloudFormation:
 
 [Minimal Web Server Deployment on AWS via CloudFormation](cloudformaton/minimal_project.yml) -> Result: http://18.192.31.244/
+
+## Diagram
+
+![Diagram](project1_dev_vpc.png)
