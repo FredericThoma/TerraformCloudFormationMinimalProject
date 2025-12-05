@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Minimal PoC – Launch S3 Bucket from CloudFormation
+
+Resources:
+  BucketFromCloudFormation:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: my-cloudformation-poc-bucket-123456
+      Tags:
+        - Key: Name
+          Value: cloudformation-poc-bucket
+        - Key: Environment
+          Value: poc
