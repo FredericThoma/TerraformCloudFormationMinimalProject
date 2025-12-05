@@ -5,5 +5,9 @@
 
 ## Terraform:
 
-[Minimal Web Server Deployment on AWS](terraform/minimal_project.tf)
+[Minimal Web Server Deployment on AWS via Terraform](terraform/minimal_project.tf)
  -> Result: http://18.199.187.170/
+
+## CloudFormation:
+
+[Minimal Web Server Deployment on AWS via CloudFormation](cloudformaton/minimal_project.yml) -> Result: http://18.192.31.244/
