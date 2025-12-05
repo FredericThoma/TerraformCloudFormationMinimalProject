@@ -1,0 +1,190 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: project2 dev VPC + web server (equivalent to Terraform example)
+
+Parameters:
+  SshAllowedCidr:
+    Type: String
+    Description: CIDR block allowed to SSH into instances
+
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access
+
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-0a6793a25df710b06
+    Description: AMI ID for the web server instance
+
+Resources:
+  DevVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      InstanceTenancy: default
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: project2_dev_vpc
+        - Key: Environment
+          Value: dev
+        - Key: Project
+          Value: project2
+
+  DevInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: project2_dev_igw
+        - Key: Environment
+          Value: dev
+        - Key: Project
+          Value: project2
+
+  DevVPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref DevVPC
+      InternetGatewayId: !Ref DevInternetGateway
+
+  DevRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref DevVPC
+      Tags:
+        - Key: Name
+          Value: project2_dev_route_table
+        - Key: Environment
+          Value: dev
+        - Key: Project
+          Value: project2
+
+  DevDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: DevVPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref DevRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref DevInternetGateway
+
+  DevSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref DevVPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: project2_dev_subnet
+        - Key: Environment
+          Value: dev
+        - Key: Project
+          Value: project2
+
+  DevSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DevSubnet
+      RouteTableId: !Ref DevRouteTable
+
+  DevSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow web + SSH access
+      VpcId: !Ref DevVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SshAllowedCidr
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: project2_dev_allow_web
+        - Key: Environment
+          Value: dev
+        - Key: Project
+          Value: project2
+
+  DevNetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId: !Ref DevSubnet
+      PrivateIpAddress: 10.0.1.50
+      GroupSet:
+        - !Ref DevSecurityGroup
+      Tags:
+        - Key: Name
+          Value: project2_dev_network_interface
+        - Key: Environment
+          Value: dev
+        - Key: Project
+          Value: project2
+
+  DevEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: DevVPCGatewayAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: project2_dev_eip
+        - Key: Environment
+          Value: dev
+        - Key: Project
+          Value: project2
+
+  DevEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt DevEIP.AllocationId
+      NetworkInterfaceId: !Ref DevNetworkInterface
+      PrivateIpAddress: 10.0.1.50
+
+  DevWebServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: t3.micro
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          NetworkInterfaceId: !Ref DevNetworkInterface
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl enable httpd
+          systemctl start httpd
+          echo "hello world - greetings from cloudformation!" > /var/www/html/index.html
+      Tags:
+        - Key: Name
+          Value: project2_dev_web_server
+        - Key: Environment
+          Value: dev
+        - Key: Project
+          Value: project2
+
+Outputs:
+  VpcId:
+    Value: !Ref DevVPC
+  SubnetId:
+    Value: !Ref DevSubnet
+  SecurityGroupId:
+    Value: !Ref DevSecurityGroup
+  InstanceId:
+    Value: !Ref DevWebServer
+  EipAddress:
+    Value: !Ref DevEIP
